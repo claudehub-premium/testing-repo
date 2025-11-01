@@ -3,6 +3,7 @@ require "./src/scanners/port_scanner"
 require "./src/scanners/file_permission_scanner"
 require "./src/scanners/config_scanner"
 require "./src/network_discovery"
+require "./src/wordlist_manager"
 
 # Vulnerability Assessment Tool
 # A basic, extensible framework for scanning systems for security vulnerabilities
@@ -15,15 +16,27 @@ puts ""
 
 # Parse command line arguments
 discover_mode = false
+wordlist_mode = false
+wordlist_path : String? = nil
 target = "localhost"
 
 # Check for flags
-ARGV.each do |arg|
+i = 0
+while i < ARGV.size
+  arg = ARGV[i]
   if arg == "--discover" || arg == "-d"
     discover_mode = true
+  elsif arg == "--wordlist" || arg == "-w"
+    wordlist_mode = true
+    # Check if next argument is a path (not a flag)
+    if i + 1 < ARGV.size && !ARGV[i + 1].starts_with?("-")
+      wordlist_path = ARGV[i + 1]
+      i += 1
+    end
   elsif !arg.starts_with?("-")
     target = arg
   end
+  i += 1
 end
 
 # If discover mode is enabled, scan the network and let user select
@@ -40,8 +53,27 @@ if discover_mode
   puts ""
   puts "🎯 Target selected: #{target}"
   puts ""
-elsif ARGV.size > 0 && !ARGV[0].starts_with?("-")
-  target = ARGV[0]
+end
+
+# Handle wordlist selection
+weak_passwords = ConfigScanner::DEFAULT_WEAK_PASSWORDS
+
+if wordlist_mode
+  # If a path was provided, use it directly; otherwise, let user select
+  if wordlist_path.nil?
+    selected_wordlist = WordlistManager.select_wordlist
+    if selected_wordlist.nil?
+      puts "Using default wordlist"
+    else
+      weak_passwords = WordlistManager.load_wordlist(selected_wordlist)
+      puts "✓ Loaded #{weak_passwords.size} passwords from wordlist"
+      puts ""
+    end
+  else
+    weak_passwords = WordlistManager.load_wordlist(wordlist_path)
+    puts "✓ Loaded #{weak_passwords.size} passwords from #{wordlist_path}"
+    puts ""
+  end
 end
 
 # Validate target
@@ -50,10 +82,13 @@ if target.empty?
   puts ""
   puts "Usage: crystal run vuln_scanner.cr [OPTIONS] [target]"
   puts "Options:"
-  puts "  -d, --discover    Discover devices on local network and select target"
+  puts "  -d, --discover              Discover devices on local network and select target"
+  puts "  -w, --wordlist [PATH]       Use wordlist for password checking (interactive or specify path)"
   puts ""
   puts "Examples:"
   puts "  crystal run vuln_scanner.cr --discover"
+  puts "  crystal run vuln_scanner.cr --wordlist 192.168.1.100"
+  puts "  crystal run vuln_scanner.cr -w wordlists/top1000.txt 192.168.1.100"
   puts "  crystal run vuln_scanner.cr 192.168.1.100"
   exit 1
 end
@@ -64,7 +99,7 @@ engine = ScannerEngine.new
 # Register all scanners
 engine.register_scanner(PortScanner.new)
 engine.register_scanner(FilePermissionScanner.new)
-engine.register_scanner(ConfigScanner.new)
+engine.register_scanner(ConfigScanner.new(weak_passwords))
 
 # Run the scan
 engine.run_scan(target)

@@ -10,7 +10,12 @@ class ConfigScanner < ScannerInterface
     "aws_access" => /(?:aws_access_key_id|aws_secret_access_key)\s*[=:]\s*["']?([A-Z0-9]+)["']?/i
   }
 
-  WEAK_PASSWORDS = ["password", "123456", "admin", "root", "test", "default"]
+  DEFAULT_WEAK_PASSWORDS = ["password", "123456", "admin", "root", "test", "default"]
+
+  property weak_passwords : Array(String)
+
+  def initialize(@weak_passwords : Array(String) = DEFAULT_WEAK_PASSWORDS)
+  end
 
   # Directories to exclude from scanning for performance
   EXCLUDED_DIRS = [
@@ -44,24 +49,50 @@ class ConfigScanner < ScannerInterface
     vulnerabilities = [] of Vulnerability
     scanned_files = Set(String).new
 
-    # Scan common config file types and .env files in a single pass
-    # Using brace expansion to include hidden .env files
-    patterns = ["**/*.{yml,yaml,env,conf,config,json,ini,xml}", "**/.env*"]
+    # Only scan if target is localhost or local IP
+    # Config file scanning only works on the local filesystem
+    if is_local_target?(target)
+      # Scan common config file types and .env files in a single pass
+      # Using brace expansion to include hidden .env files
+      patterns = ["**/*.{yml,yaml,env,conf,config,json,ini,xml}", "**/.env*"]
 
-    patterns.each do |pattern|
-      Dir.glob(pattern).each do |file|
-        # Skip if already scanned (avoid duplicates)
-        next if scanned_files.includes?(file)
+      patterns.each do |pattern|
+        Dir.glob(pattern).each do |file|
+          # Skip if already scanned (avoid duplicates)
+          next if scanned_files.includes?(file)
 
-        # Skip excluded directories for performance
-        next if EXCLUDED_DIRS.any? { |dir| file.includes?("/#{dir}/") || file.starts_with?("#{dir}/") }
+          # Skip excluded directories for performance
+          next if EXCLUDED_DIRS.any? { |dir| file.includes?("/#{dir}/") || file.starts_with?("#{dir}/") }
 
-        scanned_files.add(file)
-        scan_file(file, vulnerabilities)
+          scanned_files.add(file)
+          scan_file(file, vulnerabilities)
+        end
       end
     end
 
     vulnerabilities
+  end
+
+  private def is_local_target?(target : String) : Bool
+    # Check if target is localhost, 127.0.0.1, or empty
+    return true if target.empty?
+    return true if target == "localhost"
+    return true if target.starts_with?("127.")
+    return true if target == "::1"
+
+    # Check if target matches local IP
+    begin
+      require "socket"
+      socket = TCPSocket.new("8.8.8.8", 53)
+      local_ip = socket.local_address.address
+      socket.close
+      return true if target == local_ip
+    rescue
+      # If we can't determine local IP, assume it might be local
+      return true
+    end
+
+    false
   end
 
   private def scan_file(filepath : String, vulnerabilities : Array(Vulnerability))
@@ -86,7 +117,7 @@ class ConfigScanner < ScannerInterface
             value = match[1]?
 
             # Check for weak passwords
-            if type == "password" && value && WEAK_PASSWORDS.includes?(value.downcase)
+            if type == "password" && value && @weak_passwords.includes?(value.downcase)
               vulnerabilities << Vulnerability.new(
                 title: "Weak Password in Configuration",
                 description: "A weak password '#{value}' was found in a configuration file",

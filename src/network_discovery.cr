@@ -144,7 +144,6 @@ class NetworkDiscovery
 
     # Collect remaining results
     remaining = spawned % concurrency
-    remaining = concurrency if remaining == 0
     remaining.times do
       if device = channel.receive
         mutex.synchronize do
