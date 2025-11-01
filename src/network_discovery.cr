@@ -66,7 +66,7 @@ class NetworkDiscovery
     begin
       # Use Crystal's Socket library for native reverse DNS lookup
       # This is much faster than spawning a subprocess
-      addrinfo = Socket::Addrinfo.resolve(ip, 0, Socket::Type::STREAM)
+      addrinfo = Socket::Addrinfo.resolve(ip, 0, type: Socket::Type::STREAM)
       if addrinfo && addrinfo.size > 0
         # Get the hostname from the first result
         hostname = addrinfo[0].getnameinfo[0]
