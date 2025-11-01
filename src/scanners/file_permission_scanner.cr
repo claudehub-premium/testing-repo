@@ -1,4 +1,5 @@
 require "../scanner_interface"
+require "socket"
 
 # Scans for insecure file permissions
 class FilePermissionScanner < ScannerInterface
@@ -65,7 +66,6 @@ class FilePermissionScanner < ScannerInterface
 
     # Check if target matches local IP
     begin
-      require "socket"
       socket = TCPSocket.new("8.8.8.8", 53)
       local_ip = socket.local_address.address
       socket.close
