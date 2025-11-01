@@ -12,6 +12,26 @@ class ConfigScanner < ScannerInterface
 
   WEAK_PASSWORDS = ["password", "123456", "admin", "root", "test", "default"]
 
+  # Directories to exclude from scanning for performance
+  EXCLUDED_DIRS = [
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".cache",
+    "dist",
+    "build",
+    "target",
+    ".npm",
+    ".yarn",
+    "vendor",
+    ".bundle",
+    "bower_components",
+    ".next",
+    ".nuxt"
+  ]
+
   def name : String
     "Configuration Scanner"
   end
@@ -22,17 +42,23 @@ class ConfigScanner < ScannerInterface
 
   def scan(target : String) : Array(Vulnerability)
     vulnerabilities = [] of Vulnerability
+    scanned_files = Set(String).new
 
-    # Scan common config file types
-    Dir.glob("**/*.{yml,yaml,env,conf,config,json,ini,xml}").each do |file|
-      next if file.includes?("node_modules") || file.includes?("vendor")
+    # Scan common config file types and .env files in a single pass
+    # Using brace expansion to include hidden .env files
+    patterns = ["**/*.{yml,yaml,env,conf,config,json,ini,xml}", "**/.env*"]
 
-      scan_file(file, vulnerabilities)
-    end
+    patterns.each do |pattern|
+      Dir.glob(pattern).each do |file|
+        # Skip if already scanned (avoid duplicates)
+        next if scanned_files.includes?(file)
 
-    # Also check for .env files specifically
-    Dir.glob("**/.env*").each do |file|
-      scan_file(file, vulnerabilities)
+        # Skip excluded directories for performance
+        next if EXCLUDED_DIRS.any? { |dir| file.includes?("/#{dir}/") || file.starts_with?("#{dir}/") }
+
+        scanned_files.add(file)
+        scan_file(file, vulnerabilities)
+      end
     end
 
     vulnerabilities
@@ -42,14 +68,20 @@ class ConfigScanner < ScannerInterface
     return unless File.file?(filepath)
 
     begin
-      content = File.read(filepath)
       line_number = 0
 
-      content.each_line do |line|
+      # Stream file line-by-line instead of loading entirely into memory
+      File.each_line(filepath) do |line|
         line_number += 1
 
+        # Early exit after finding first match to avoid redundant pattern checks
+        found_match = false
+
         PATTERNS.each do |type, pattern|
+          break if found_match  # Skip remaining patterns once we've found a match
+
           if match = pattern.match(line)
+            found_match = true
             # Extract the value (usually in capture group 1)
             value = match[1]?
 
