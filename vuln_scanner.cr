@@ -6,13 +6,11 @@ require "./src/scanners/config_scanner"
 # Vulnerability Assessment Tool
 # A basic, extensible framework for scanning systems for security vulnerabilities
 
-puts """
-╔═══════════════════════════════════════════════════════════╗
-║     Vulnerability Assessment Tool v1.0                    ║
-║     Basic Security Scanner Framework                      ║
-╚═══════════════════════════════════════════════════════════╝
-
-"""
+puts "╔═══════════════════════════════════════════════════════════╗"
+puts "║     Vulnerability Assessment Tool v1.0                    ║"
+puts "║     Basic Security Scanner Framework                      ║"
+puts "╚═══════════════════════════════════════════════════════════╝"
+puts ""
 
 # Parse command line arguments
 target = ARGV.size > 0 ? ARGV[0] : "localhost"
@@ -34,8 +32,6 @@ engine.register_scanner(ConfigScanner.new)
 # Run the scan
 engine.run_scan(target)
 
-puts """
-
-Scan completed. Add more scanners by creating new classes that inherit from ScannerInterface.
-Place them in src/scanners/ and register them in vuln_scanner.cr
-"""
+puts ""
+puts "Scan completed. Add more scanners by creating new classes that inherit from ScannerInterface."
+puts "Place them in src/scanners/ and register them in vuln_scanner.cr"
