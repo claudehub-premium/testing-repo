@@ -1,15 +1,14 @@
-# Crystal Web Server 💎
+# Vulnerability Assessment Tool 🔒
 
-A fully self-hosted web server built in Crystal that can serve static files with zero external dependencies.
+A basic, extensible vulnerability assessment framework built in Crystal. Designed to be expanded with custom scanners for identifying security weaknesses in systems and applications.
 
 ## Features
 
+- 🔌 **Plugin Architecture**: Easy-to-extend scanner interface for adding new vulnerability checks
+- 🎯 **Multiple Scanner Types**: Includes port, file permission, and configuration scanners
+- 📊 **Severity-Based Reporting**: Vulnerabilities categorized as LOW, MEDIUM, HIGH, or CRITICAL
 - 🚀 **Fast and Lightweight**: Built with Crystal for maximum performance
-- 📁 **Static File Serving**: Serves HTML, CSS, JavaScript, images, and more
-- 🔒 **Security**: Built-in directory traversal protection
-- 📝 **Request Logging**: Automatic logging of all requests with timestamps
-- 🎨 **Custom 404 Pages**: User-friendly error pages
-- 🔧 **Configurable**: Customize host and port via command-line arguments
+- 📝 **Detailed Reports**: Clear descriptions and actionable recommendations
 - 💎 **Pure Crystal**: No external dependencies required
 
 ## Prerequisites
@@ -24,142 +23,235 @@ git clone <repository-url>
 cd testing-repo
 ```
 
-2. No dependencies to install - the server uses only Crystal's standard library!
+2. No dependencies to install - uses only Crystal's standard library!
 
 ## Usage
 
 ### Quick Start
 
-Run the server with default settings (localhost:8080):
+Run a basic vulnerability scan on localhost:
 
 ```bash
-crystal run server.cr
+crystal run vuln_scanner.cr
 ```
 
-The server will start and serve files from the `public/` directory.
-
-### Custom Port
-
-Run on a different port:
+### Scan a Specific Target
 
 ```bash
-crystal run server.cr -- 3000
+crystal run vuln_scanner.cr -- 192.168.1.100
 ```
 
-### Custom Host and Port
+### Compile for Production
 
-Run on a specific host and port:
+For better performance, compile the scanner first:
 
 ```bash
-crystal run server.cr -- 8080 0.0.0.0
+crystal build vuln_scanner.cr --release -o vuln_scanner
+./vuln_scanner
 ```
 
-### Compile and Run
+## Built-in Scanners
 
-For better performance, compile the server first:
+### 1. Port Scanner
+Scans for open ports that may expose services to attackers.
+- Checks common ports (21, 22, 23, 80, 443, 3306, etc.)
+- Identifies high-risk services (FTP, Telnet, RDP, Redis)
+- Provides service identification
 
-```bash
-crystal build server.cr --release
-./server
+### 2. File Permission Scanner
+Checks for insecure file permissions on sensitive files.
+- Detects world-readable sensitive files (.env, config files)
+- Identifies world-writable files
+- Recommends proper permission settings
+
+### 3. Configuration Scanner
+Scans configuration files for exposed secrets and weak passwords.
+- Detects hardcoded credentials (passwords, API keys, tokens)
+- Identifies weak passwords
+- Scans YAML, JSON, ENV, and other config file formats
+
+## Extending the Framework
+
+### Creating a New Scanner
+
+1. Create a new file in `src/scanners/`:
+
+```crystal
+require "../scanner_interface"
+
+class MyCustomScanner < ScannerInterface
+  def name : String
+    "My Custom Scanner"
+  end
+
+  def description : String
+    "Description of what this scanner does"
+  end
+
+  def scan : Array(Vulnerability)
+    vulnerabilities = [] of Vulnerability
+
+    # Your scanning logic here
+    # Add vulnerabilities as you find them
+
+    vulnerabilities << Vulnerability.new(
+      title: "Vulnerability Title",
+      description: "Detailed description",
+      severity: Vulnerability::Severity::HIGH,
+      location: "/path/to/issue",
+      recommendation: "How to fix this",
+      metadata: {"key" => "value"}
+    )
+
+    vulnerabilities
+  end
+end
 ```
 
-Or with custom settings:
+2. Register your scanner in `vuln_scanner.cr`:
 
-```bash
-./server 3000 0.0.0.0
+```crystal
+require "./src/scanners/my_custom_scanner"
+
+# In the main section:
+engine.register_scanner(MyCustomScanner.new)
 ```
+
+### Vulnerability Severity Levels
+
+- **CRITICAL**: Immediate threat requiring urgent attention
+- **HIGH**: Significant security risk that should be addressed soon
+- **MEDIUM**: Moderate risk that should be reviewed
+- **LOW**: Minor security concern
 
 ## Project Structure
 
 ```
 .
-├── server.cr           # Main web server implementation
-├── public/             # Static files directory
-│   └── index.html      # Default index page
-├── shard.yml           # Crystal project configuration
-└── README.md           # This file
+├── vuln_scanner.cr              # Main entry point
+├── src/
+│   ├── vulnerability.cr         # Vulnerability data structure
+│   ├── scanner_interface.cr     # Base interface for scanners
+│   ├── scanner_engine.cr        # Core scanning engine
+│   ├── report.cr                # Report generation
+│   └── scanners/                # Individual scanner modules
+│       ├── port_scanner.cr
+│       ├── file_permission_scanner.cr
+│       └── config_scanner.cr
+├── shard.yml                    # Crystal project configuration
+└── README.md                    # This file
 ```
-
-## How It Works
-
-1. **File Serving**: The server looks for files in the `public/` directory
-2. **Default Route**: Accessing `/` automatically serves `public/index.html`
-3. **MIME Types**: Automatically detects and sets correct content types
-4. **Security**: Prevents directory traversal attacks
-5. **Logging**: All requests are logged with timestamp, method, path, and status code
-
-## Adding Your Own Content
-
-Simply place your files in the `public/` directory:
-
-```bash
-# Add a new HTML page
-echo "<h1>About Page</h1>" > public/about.html
-
-# Add CSS
-mkdir public/css
-echo "body { background: blue; }" > public/css/style.css
-
-# Add JavaScript
-mkdir public/js
-echo "console.log('Hello!');" > public/js/app.js
-```
-
-Then access them at:
-- `http://localhost:8080/about.html`
-- `http://localhost:8080/css/style.css`
-- `http://localhost:8080/js/app.js`
-
-## Supported File Types
-
-The server automatically sets the correct `Content-Type` header for:
-
-- HTML (`.html`, `.htm`)
-- CSS (`.css`)
-- JavaScript (`.js`)
-- JSON (`.json`)
-- Images (`.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`)
-- Text (`.txt`)
-- XML (`.xml`)
-- PDF (`.pdf`)
-- Other files (served as `application/octet-stream`)
 
 ## Example Output
 
 ```
-Starting web server on http://0.0.0.0:8080
-Serving files from: ./public
-Press Ctrl+C to stop the server
-[2025-11-01 10:30:15] GET / - 200
-[2025-11-01 10:30:16] GET /css/style.css - 200
-[2025-11-01 10:30:17] GET /notfound.html - 404
+╔═══════════════════════════════════════════════════════════╗
+║     Vulnerability Assessment Tool v1.0                    ║
+║     Basic Security Scanner Framework                      ║
+╚═══════════════════════════════════════════════════════════╝
+
+============================================================
+Vulnerability Assessment Tool
+============================================================
+Target: localhost
+Scanners loaded: 3
+============================================================
+
+Running scanner: Port Scanner
+  Description: Scans for open ports that may expose services to attackers
+  Found: 2 vulnerabilities
+
+Running scanner: File Permission Scanner
+  Description: Checks for overly permissive file permissions on sensitive files
+  Found: 1 vulnerabilities
+
+Running scanner: Configuration Scanner
+  Description: Scans configuration files for exposed secrets and weak passwords
+  Found: 0 vulnerabilities
+
+============================================================
+VULNERABILITY ASSESSMENT REPORT
+============================================================
+Generated: 2025-11-01 10:30:00
+Total Vulnerabilities: 3
+
+Summary by Severity:
+  CRITICAL: 0
+  HIGH: 2
+  MEDIUM: 1
+  LOW: 0
+
+------------------------------------------------------------
+HIGH SEVERITY VULNERABILITIES (2)
+------------------------------------------------------------
+
+1. Open Port Detected: 22
+   Location: localhost:22
+   Description: Port 22 is open and accessible
+   Recommendation: Review if this port needs to be exposed. Consider firewall rules or closing unused services.
+   Additional Info:
+     - port: 22
+     - service: SSH
+
+2. Sensitive File Readable by Others
+   Location: /home/user/.env
+   Description: The file .env contains potentially sensitive information and is readable by all users
+   Recommendation: Run: chmod 600 .env
+   Additional Info:
+     - permissions: 644
+     - file: .env
+
+------------------------------------------------------------
+MEDIUM SEVERITY VULNERABILITIES (1)
+------------------------------------------------------------
+
+1. World-Writable File
+   Location: /home/user/temp.txt
+   Description: File is writable by any user on the system
+   Recommendation: Remove write permissions for others: chmod o-w temp.txt
+   Additional Info:
+     - permissions: 666
+
+============================================================
 ```
+
+## Future Expansion Ideas
+
+- **Web Application Scanners**: SQL injection, XSS, CSRF detection
+- **Network Scanners**: SSL/TLS configuration, DNS issues
+- **Docker/Container Scanners**: Image vulnerabilities, misconfigurations
+- **Database Scanners**: Weak credentials, exposed databases
+- **Compliance Checkers**: CIS benchmarks, OWASP Top 10
+- **JSON/HTML Report Export**: Multiple output format support
+- **Parallel Scanning**: Concurrent scanner execution
+- **Custom Rules Engine**: User-defined vulnerability patterns
 
 ## Development
 
-The server is implemented as a single `SimpleWebServer` class with the following features:
+The framework is designed around three core concepts:
 
-- **Request Handling**: Parses HTTP requests and routes to appropriate handlers
-- **File System Integration**: Reads and serves files from the file system
-- **Content Type Detection**: Automatically determines MIME types
-- **Error Handling**: Graceful error handling with custom error pages
-- **Security**: Path validation to prevent directory traversal
+1. **Vulnerability**: Data structure representing a security issue
+2. **ScannerInterface**: Abstract base class that all scanners implement
+3. **ScannerEngine**: Orchestrates scanner execution and report generation
 
-## Technical Details
-
-- **Language**: Crystal
-- **HTTP Server**: Uses Crystal's built-in `HTTP::Server` from the standard library
-- **Default Host**: `0.0.0.0` (accepts connections from any network interface)
-- **Default Port**: `8080`
-- **Public Directory**: `./public`
+This separation allows for easy extension without modifying core code.
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+Feel free to submit issues and enhancement requests! When contributing new scanners:
+
+1. Inherit from `ScannerInterface`
+2. Implement required methods: `name`, `description`, `scan`
+3. Return an array of `Vulnerability` objects
+4. Add clear recommendations for remediation
 
 ## License
 
 MIT License - feel free to use this project for any purpose.
+
+## Security Note
+
+This tool is designed for authorized security assessments only. Always ensure you have permission before scanning systems you don't own. Unauthorized scanning may be illegal in your jurisdiction.
 
 ## Credits
 
