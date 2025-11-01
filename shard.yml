@@ -1,12 +1,13 @@
-name: crystal-web-server
+name: vulnerability-assessment-tool
 version: 1.0.0
 
 authors:
-  - Crystal Web Server <dev@example.com>
+  - Vulnerability Assessment Tool <security@example.com>
 
 description: |
-  A fully self-hosted web server built in Crystal that can serve static files.
-  No external dependencies required.
+  A basic, extensible vulnerability assessment framework for identifying
+  security weaknesses in systems and applications. Built with a plugin
+  architecture for easy expansion. No external dependencies required.
 
 crystal: ">= 1.0.0"
 

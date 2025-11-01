@@ -1,0 +1,93 @@
+require "../scanner_interface"
+
+# Scans for insecure file permissions
+class FilePermissionScanner < ScannerInterface
+  SENSITIVE_FILES = [
+    "/etc/shadow",
+    "/etc/passwd",
+    "~/.ssh/id_rsa",
+    "~/.ssh/id_ed25519",
+    ".env",
+    "config.yml",
+    "database.yml"
+  ]
+
+  def name : String
+    "File Permission Scanner"
+  end
+
+  def description : String
+    "Checks for overly permissive file permissions on sensitive files"
+  end
+
+  def scan : Array(Vulnerability)
+    vulnerabilities = [] of Vulnerability
+
+    # Check current directory for sensitive files
+    check_local_files(vulnerabilities)
+
+    # Check for world-writable files in current directory
+    check_world_writable(vulnerabilities)
+
+    vulnerabilities
+  end
+
+  private def check_local_files(vulnerabilities : Array(Vulnerability))
+    [".env", "config.yml", "database.yml", "secrets.yml"].each do |filename|
+      next unless File.exists?(filename)
+
+      info = File.info(filename)
+      permissions = info.permissions.value
+
+      # Check if file is readable by others (permissions & 0o004)
+      if (permissions & 0o004) != 0
+        vulnerabilities << Vulnerability.new(
+          title: "Sensitive File Readable by Others",
+          description: "The file #{filename} contains potentially sensitive information and is readable by all users",
+          severity: Vulnerability::Severity::HIGH,
+          location: File.expand_path(filename),
+          recommendation: "Run: chmod 600 #{filename}",
+          metadata: {"permissions" => permissions.to_s(8), "file" => filename}
+        )
+      end
+
+      # Check if file is writable by others (permissions & 0o002)
+      if (permissions & 0o002) != 0
+        vulnerabilities << Vulnerability.new(
+          title: "Sensitive File Writable by Others",
+          description: "The file #{filename} is writable by all users, allowing potential tampering",
+          severity: Vulnerability::Severity::CRITICAL,
+          location: File.expand_path(filename),
+          recommendation: "Run: chmod 600 #{filename}",
+          metadata: {"permissions" => permissions.to_s(8), "file" => filename}
+        )
+      end
+    end
+  end
+
+  private def check_world_writable(vulnerabilities : Array(Vulnerability))
+    Dir.glob("**/*").each do |file|
+      next unless File.file?(file)
+      next if file.starts_with?(".")
+
+      begin
+        info = File.info(file)
+        permissions = info.permissions.value
+
+        # Check if world-writable
+        if (permissions & 0o002) != 0
+          vulnerabilities << Vulnerability.new(
+            title: "World-Writable File",
+            description: "File is writable by any user on the system",
+            severity: Vulnerability::Severity::MEDIUM,
+            location: File.expand_path(file),
+            recommendation: "Remove write permissions for others: chmod o-w #{file}",
+            metadata: {"permissions" => permissions.to_s(8)}
+          )
+        end
+      rescue
+        # Skip files we can't read
+      end
+    end
+  end
+end
