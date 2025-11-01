@@ -20,7 +20,7 @@ class FilePermissionScanner < ScannerInterface
     "Checks for overly permissive file permissions on sensitive files"
   end
 
-  def scan : Array(Vulnerability)
+  def scan(target : String) : Array(Vulnerability)
     vulnerabilities = [] of Vulnerability
 
     # Check current directory for sensitive files

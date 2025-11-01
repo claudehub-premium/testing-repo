@@ -34,7 +34,7 @@ class ScannerEngine
       puts "  Description: #{scanner.description}"
 
       begin
-        results = scanner.scan
+        results = scanner.scan(target)
         @vulnerabilities.concat(results)
         puts "  Found: #{results.size} vulnerabilities"
       rescue ex
