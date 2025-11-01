@@ -6,6 +6,7 @@ A basic, extensible vulnerability assessment framework built in Crystal. Designe
 
 - 🔌 **Plugin Architecture**: Easy-to-extend scanner interface for adding new vulnerability checks
 - 🎯 **Multiple Scanner Types**: Includes port, file permission, and configuration scanners
+- 🌐 **Network Device Discovery**: Automatically discover and select devices on your local network
 - 📊 **Severity-Based Reporting**: Vulnerabilities categorized as LOW, MEDIUM, HIGH, or CRITICAL
 - 🚀 **Fast and Lightweight**: Built with Crystal for maximum performance
 - 📝 **Detailed Reports**: Clear descriptions and actionable recommendations
@@ -35,6 +36,27 @@ Run a basic vulnerability scan on localhost:
 crystal run vuln_scanner.cr
 ```
 
+### Discover Devices on Local Network
+
+The tool can automatically discover devices on your local network and let you select which one to scan:
+
+```bash
+crystal run vuln_scanner.cr -- --discover
+```
+
+or use the short flag:
+
+```bash
+crystal run vuln_scanner.cr -- -d
+```
+
+This will:
+1. Scan your local network subnet (e.g., 192.168.1.0/24)
+2. Detect active devices by checking common ports (80, 443, 22, 445, 8080)
+3. Attempt to resolve hostnames for discovered devices
+4. Display an interactive menu to select your target
+5. Allow manual entry if the device isn't found
+
 ### Scan a Specific Target
 
 ```bash
@@ -47,7 +69,7 @@ For better performance, compile the scanner first:
 
 ```bash
 crystal build vuln_scanner.cr --release -o vuln_scanner
-./vuln_scanner
+./vuln_scanner --discover
 ```
 
 ## Built-in Scanners
@@ -134,6 +156,7 @@ engine.register_scanner(MyCustomScanner.new)
 │   ├── scanner_interface.cr     # Base interface for scanners
 │   ├── scanner_engine.cr        # Core scanning engine
 │   ├── report.cr                # Report generation
+│   ├── network_discovery.cr     # Network device discovery module
 │   └── scanners/                # Individual scanner modules
 │       ├── port_scanner.cr
 │       ├── file_permission_scanner.cr
