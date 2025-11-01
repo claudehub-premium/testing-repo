@@ -61,25 +61,26 @@ class NetworkDiscovery
     nil
   end
 
-  # Try to resolve hostname for an IP
+  # Try to resolve hostname for an IP using native DNS resolution
   def self.resolve_hostname(ip : String) : String?
     begin
-      # Use a simple system call to resolve hostname
-      result = `host #{ip} 2>/dev/null`.strip
-      if result.includes?("domain name pointer")
-        parts = result.split("domain name pointer")
-        if parts.size > 1
-          return parts[1].strip.rstrip('.')
-        end
+      # Use Crystal's Socket library for native reverse DNS lookup
+      # This is much faster than spawning a subprocess
+      addrinfo = Socket::Addrinfo.resolve(ip, 0, Socket::Type::STREAM)
+      if addrinfo && addrinfo.size > 0
+        # Get the hostname from the first result
+        hostname = addrinfo[0].getnameinfo[0]
+        # Return hostname only if it's different from the IP
+        return hostname unless hostname == ip
       end
     rescue
-      # Hostname resolution failed
+      # Hostname resolution failed - this is normal for many IPs
     end
     nil
   end
 
-  # Discover devices on the local network
-  def self.discover_devices(subnet : String? = nil, range : Range(Int32, Int32) = 1..254) : Array(Device)
+  # Discover devices on the local network with concurrent scanning
+  def self.discover_devices(subnet : String? = nil, range : Range(Int32, Int32) = 1..254, concurrency : Int32 = 50) : Array(Device)
     puts "🔍 Scanning local network for devices..."
     puts ""
 
@@ -93,30 +94,67 @@ class NetworkDiscovery
     end
 
     puts "📡 Subnet detected: #{subnet}.0/24"
-    puts "⏳ This may take a few minutes... (scanning #{range.size} addresses)"
+    puts "⚡ Using concurrent scanning with #{concurrency} parallel workers"
+    puts "⏳ Scanning #{range.size} addresses..."
     puts ""
 
     devices = [] of Device
     scanned = 0
     total = range.size
+    mutex = Mutex.new
 
+    # Channel to collect results
+    channel = Channel(Device?).new(concurrency)
+
+    # Spawn worker fibers to scan IPs concurrently
+    spawned = 0
     range.each do |i|
       ip = "#{subnet}.#{i}"
 
-      # Show progress every 10 IPs
-      scanned += 1
-      if scanned % 10 == 0
-        progress = (scanned.to_f / total * 100).round(1)
-        print "\rProgress: #{progress}% (#{scanned}/#{total}) - Found: #{devices.size} devices"
+      # Spawn a fiber to check this host
+      spawn do
+        device = check_host(ip)
+        channel.send(device)
       end
 
-      device = check_host(ip)
-      if device
-        devices << device
-        print "\r✓ Found device: #{device.ip.ljust(15)} "
-        print "#{device.open_ports.map { |p| p.to_s }.join(", ").ljust(20)}"
-        puts ""
+      spawned += 1
+
+      # Limit number of concurrent workers
+      if spawned % concurrency == 0
+        concurrency.times do
+          if device = channel.receive
+            mutex.synchronize do
+              devices << device
+              scanned += 1
+              print "\r✓ Found device: #{device.ip.ljust(15)} "
+              print "#{device.open_ports.map { |p| p.to_s }.join(", ").ljust(20)}"
+              puts ""
+            end
+          else
+            mutex.synchronize { scanned += 1 }
+          end
+
+          if scanned % 10 == 0
+            progress = (scanned.to_f / total * 100).round(1)
+            print "\rProgress: #{progress}% (#{scanned}/#{total}) - Found: #{devices.size} devices"
+          end
+        end
       end
+    end
+
+    # Collect remaining results
+    remaining = spawned % concurrency
+    remaining = concurrency if remaining == 0
+    remaining.times do
+      if device = channel.receive
+        mutex.synchronize do
+          devices << device
+          print "\r✓ Found device: #{device.ip.ljust(15)} "
+          print "#{device.open_ports.map { |p| p.to_s }.join(", ").ljust(20)}"
+          puts ""
+        end
+      end
+      scanned += 1
     end
 
     print "\r" + " " * 80 + "\r"  # Clear progress line

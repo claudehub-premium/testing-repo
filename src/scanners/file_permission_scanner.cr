@@ -12,6 +12,26 @@ class FilePermissionScanner < ScannerInterface
     "database.yml"
   ]
 
+  # Directories to exclude from scanning for performance
+  EXCLUDED_DIRS = [
+    ".git",
+    "node_modules",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".cache",
+    "dist",
+    "build",
+    "target",
+    ".npm",
+    ".yarn",
+    "vendor",
+    ".bundle",
+    "bower_components",
+    ".next",
+    ".nuxt"
+  ]
+
   def name : String
     "File Permission Scanner"
   end
@@ -67,6 +87,8 @@ class FilePermissionScanner < ScannerInterface
 
   private def check_world_writable(vulnerabilities : Array(Vulnerability))
     Dir.glob("**/*").each do |file|
+      # Skip excluded directories for performance
+      next if EXCLUDED_DIRS.any? { |dir| file.includes?("/#{dir}/") || file.starts_with?("#{dir}/") }
       next unless File.file?(file)
       next if file.starts_with?(".")
 
