@@ -1,0 +1,13 @@
+name: crystal-web-server
+version: 1.0.0
+
+authors:
+  - Crystal Web Server <dev@example.com>
+
+description: |
+  A fully self-hosted web server built in Crystal that can serve static files.
+  No external dependencies required.
+
+crystal: ">= 1.0.0"
+
+license: MIT
