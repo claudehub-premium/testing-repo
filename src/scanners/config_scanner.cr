@@ -7,7 +7,7 @@ class ConfigScanner < ScannerInterface
     "api_key" => /api[_-]?key\s*[=:]\s*["']?([a-zA-Z0-9_\-]+)["']?/i,
     "secret" => /secret\s*[=:]\s*["']?(\w+)["']?/i,
     "token" => /token\s*[=:]\s*["']?([a-zA-Z0-9_\-]+)["']?/i,
-    "aws_access" => /(aws_access_key_id|aws_secret_access_key)\s*[=:]\s*["']?([A-Z0-9]+)["']?/i
+    "aws_access" => /(?:aws_access_key_id|aws_secret_access_key)\s*[=:]\s*["']?([A-Z0-9]+)["']?/i
   }
 
   WEAK_PASSWORDS = ["password", "123456", "admin", "root", "test", "default"]
@@ -20,7 +20,7 @@ class ConfigScanner < ScannerInterface
     "Scans configuration files for exposed secrets and weak passwords"
   end
 
-  def scan : Array(Vulnerability)
+  def scan(target : String) : Array(Vulnerability)
     vulnerabilities = [] of Vulnerability
 
     # Scan common config file types

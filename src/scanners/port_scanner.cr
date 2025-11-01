@@ -19,11 +19,11 @@ class PortScanner < ScannerInterface
     "Scans for open ports that may expose services to attackers"
   end
 
-  def scan : Array(Vulnerability)
+  def scan(target : String) : Array(Vulnerability)
     vulnerabilities = [] of Vulnerability
 
     COMMON_PORTS.each do |port|
-      if port_open?("localhost", port)
+      if port_open?(target, port)
         severity = HIGH_RISK_PORTS.has_key?(port) ?
           Vulnerability::Severity::HIGH :
           Vulnerability::Severity::MEDIUM
@@ -34,7 +34,7 @@ class PortScanner < ScannerInterface
           title: "Open Port Detected: #{port}",
           description: description,
           severity: severity,
-          location: "localhost:#{port}",
+          location: "#{target}:#{port}",
           recommendation: "Review if this port needs to be exposed. Consider firewall rules or closing unused services.",
           metadata: {"port" => port.to_s, "service" => guess_service(port)}
         )
@@ -44,7 +44,7 @@ class PortScanner < ScannerInterface
     vulnerabilities
   end
 
-  private def port_open?(host : String, port : Int32, timeout : Float64 = 1.0) : Bool
+  private def port_open?(host : String, port : Int32, timeout : Float64 = 2.0) : Bool
     begin
       socket = TCPSocket.new(host, port, connect_timeout: timeout)
       socket.close

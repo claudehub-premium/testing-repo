@@ -4,7 +4,7 @@ require "./vulnerability"
 abstract class ScannerInterface
   abstract def name : String
   abstract def description : String
-  abstract def scan : Array(Vulnerability)
+  abstract def scan(target : String) : Array(Vulnerability)
 
   # Optional: Perform any initialization before scanning
   def initialize

@@ -17,6 +17,12 @@ puts """
 # Parse command line arguments
 target = ARGV.size > 0 ? ARGV[0] : "localhost"
 
+# Validate target
+if target.empty?
+  puts "Error: Target cannot be empty"
+  exit 1
+end
+
 # Initialize the scanner engine
 engine = ScannerEngine.new
 
