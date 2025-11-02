@@ -1,4 +1,5 @@
 require "../scanner_interface"
+require "../target_utils"
 require "socket"
 
 # Scans for insecure configurations and exposed secrets
@@ -52,7 +53,7 @@ class ConfigScanner < ScannerInterface
 
     # Only scan if target is localhost or local IP
     # Config file scanning only works on the local filesystem
-    if is_local_target?(target)
+    if TargetUtils.is_local_target?(target)
       # Scan common config file types and .env files in a single pass
       # Using brace expansion to include hidden .env files
       patterns = ["**/*.{yml,yaml,env,conf,config,json,ini,xml}", "**/.env*"]
@@ -72,27 +73,6 @@ class ConfigScanner < ScannerInterface
     end
 
     vulnerabilities
-  end
-
-  private def is_local_target?(target : String) : Bool
-    # Check if target is localhost, 127.0.0.1, or empty
-    return true if target.empty?
-    return true if target == "localhost"
-    return true if target.starts_with?("127.")
-    return true if target == "::1"
-
-    # Check if target matches local IP
-    begin
-      socket = TCPSocket.new("8.8.8.8", 53)
-      local_ip = socket.local_address.address
-      socket.close
-      return true if target == local_ip
-    rescue
-      # If we can't determine local IP, assume it might be local
-      return true
-    end
-
-    false
   end
 
   private def scan_file(filepath : String, vulnerabilities : Array(Vulnerability))

@@ -69,7 +69,7 @@ class NetworkDiscovery
       addrinfo = Socket::Addrinfo.resolve(ip, 0, type: Socket::Type::STREAM)
       if addrinfo && addrinfo.size > 0
         # Get the hostname from the first result
-        hostname, _ = Socket.getnameinfo(addrinfo[0].@addr)
+        hostname, _ = addrinfo[0].getnameinfo
         # Return hostname only if it's different from the IP
         return hostname unless hostname == ip
       end

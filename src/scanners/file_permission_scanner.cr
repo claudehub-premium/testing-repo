@@ -1,4 +1,5 @@
 require "../scanner_interface"
+require "../target_utils"
 require "socket"
 
 # Scans for insecure file permissions
@@ -46,7 +47,7 @@ class FilePermissionScanner < ScannerInterface
 
     # Only scan if target is localhost or local IP
     # File permission scanning only works on the local filesystem
-    if is_local_target?(target)
+    if TargetUtils.is_local_target?(target)
       # Check current directory for sensitive files
       check_local_files(vulnerabilities)
 
@@ -55,27 +56,6 @@ class FilePermissionScanner < ScannerInterface
     end
 
     vulnerabilities
-  end
-
-  private def is_local_target?(target : String) : Bool
-    # Check if target is localhost, 127.0.0.1, or empty
-    return true if target.empty?
-    return true if target == "localhost"
-    return true if target.starts_with?("127.")
-    return true if target == "::1"
-
-    # Check if target matches local IP
-    begin
-      socket = TCPSocket.new("8.8.8.8", 53)
-      local_ip = socket.local_address.address
-      socket.close
-      return true if target == local_ip
-    rescue
-      # If we can't determine local IP, assume it might be local
-      return true
-    end
-
-    false
   end
 
   private def check_local_files(vulnerabilities : Array(Vulnerability))
