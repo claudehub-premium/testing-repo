@@ -18,6 +18,7 @@ puts ""
 discover_mode = false
 wordlist_mode = false
 wordlist_path : String? = nil
+custom_subnet : String? = nil
 target = "localhost"
 
 # Check for flags
@@ -26,6 +27,11 @@ while i < ARGV.size
   arg = ARGV[i]
   if arg == "--discover" || arg == "-d"
     discover_mode = true
+    # Check if next argument is a subnet (not a flag)
+    if i + 1 < ARGV.size && !ARGV[i + 1].starts_with?("-")
+      custom_subnet = ARGV[i + 1]
+      i += 1
+    end
   elsif arg == "--wordlist" || arg == "-w"
     wordlist_mode = true
     # Check if next argument is a path (not a flag)
@@ -41,7 +47,7 @@ end
 
 # If discover mode is enabled, scan the network and let user select
 if discover_mode
-  devices = NetworkDiscovery.discover_devices
+  devices = NetworkDiscovery.discover_devices(custom_subnet)
   selected_target = NetworkDiscovery.select_device(devices)
 
   if selected_target.nil? || selected_target.empty?
@@ -82,11 +88,12 @@ if target.empty?
   puts ""
   puts "Usage: crystal run vuln_scanner.cr [OPTIONS] [target]"
   puts "Options:"
-  puts "  -d, --discover              Discover devices on local network and select target"
+  puts "  -d, --discover [SUBNET]     Discover devices on local network and select target (optional subnet like 192.168.1)"
   puts "  -w, --wordlist [PATH]       Use wordlist for password checking (interactive or specify path)"
   puts ""
   puts "Examples:"
   puts "  crystal run vuln_scanner.cr --discover"
+  puts "  crystal run vuln_scanner.cr -d 192.168.1"
   puts "  crystal run vuln_scanner.cr --wordlist 192.168.1.100"
   puts "  crystal run vuln_scanner.cr -w wordlists/top1000.txt 192.168.1.100"
   puts "  crystal run vuln_scanner.cr 192.168.1.100"
