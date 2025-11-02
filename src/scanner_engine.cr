@@ -28,12 +28,20 @@ class ScannerEngine
     puts "=" * 60
     puts
 
-    # Channel to collect results from each scanner
-    results_channel = Channel({String, Array(Vulnerability)?}).new(@scanners.size)
-    mutex = Mutex.new
-
     # Spawn a fiber for each enabled scanner
     enabled_scanners = @scanners.select(&.enabled?)
+
+    if enabled_scanners.empty?
+      puts "⚠️  No enabled scanners found"
+      puts
+      puts "=" * 60
+      generate_report
+      return
+    end
+
+    # Channel to collect results from each scanner
+    results_channel = Channel({String, Array(Vulnerability)?}).new(enabled_scanners.size)
+    mutex = Mutex.new
     enabled_scanners.each do |scanner|
       spawn do
         mutex.synchronize do

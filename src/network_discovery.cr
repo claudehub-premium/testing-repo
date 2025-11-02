@@ -84,6 +84,18 @@ class NetworkDiscovery
     puts "🔍 Scanning local network for devices..."
     puts ""
 
+    # Validate range
+    if range.size == 0
+      puts "❌ Invalid range: range is empty"
+      return [] of Device
+    end
+
+    # Validate concurrency
+    if concurrency < 1
+      puts "❌ Invalid concurrency: must be at least 1"
+      return [] of Device
+    end
+
     # Get subnet if not provided
     subnet = get_local_subnet if subnet.nil?
 
@@ -134,9 +146,12 @@ class NetworkDiscovery
             mutex.synchronize { scanned += 1 }
           end
 
-          if scanned % 10 == 0
-            progress = (scanned.to_f / total * 100).round(1)
-            print "\rProgress: #{progress}% (#{scanned}/#{total}) - Found: #{devices.size} devices"
+          # Display progress (thread-safe)
+          mutex.synchronize do
+            if scanned % 10 == 0
+              progress = (scanned.to_f / total * 100).round(1)
+              print "\rProgress: #{progress}% (#{scanned}/#{total}) - Found: #{devices.size} devices"
+            end
           end
         end
       end
@@ -148,12 +163,14 @@ class NetworkDiscovery
       if device = channel.receive
         mutex.synchronize do
           devices << device
+          scanned += 1
           print "\r✓ Found device: #{device.ip.ljust(15)} "
           print "#{device.open_ports.map { |p| p.to_s }.join(", ").ljust(20)}"
           puts ""
         end
+      else
+        mutex.synchronize { scanned += 1 }
       end
-      scanned += 1
     end
 
     print "\r" + " " * 80 + "\r"  # Clear progress line
