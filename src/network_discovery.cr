@@ -66,10 +66,11 @@ class NetworkDiscovery
     begin
       # Crystal's standard library doesn't include reverse DNS (getnameinfo)
       # We can try using the system's host command as a workaround
-      result = Process.run("host", [ip], output: Process::Redirect::Pipe, error: Process::Redirect::Close)
+      io = IO::Memory.new
+      result = Process.run("host", [ip], output: io, error: Process::Redirect::Close)
 
       if result.success?
-        output = result.output.to_s
+        output = io.to_s
         # Parse output like: "1.2.3.4.in-addr.arpa domain name pointer hostname.example.com."
         if match = output.match(/pointer\s+(.+)\.\s*$/)
           hostname = match[1]
