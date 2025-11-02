@@ -13,9 +13,15 @@ module TargetUtils
     # Check if target matches local IP
     begin
       socket = TCPSocket.new("8.8.8.8", 53)
-      local_ip = socket.local_address.address
-      socket.close
-      return true if target == local_ip
+
+      # Get the local address and ensure it's an IP address
+      if local_addr = socket.local_address.as?(Socket::IPAddress)
+        local_ip = local_addr.address
+        socket.close
+        return true if target == local_ip
+      else
+        socket.close
+      end
     rescue
       # If we can't determine local IP, assume it might be local
       return true

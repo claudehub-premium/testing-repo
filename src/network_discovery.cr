@@ -23,13 +23,19 @@ class NetworkDiscovery
     begin
       # Try to connect to a public IP to determine local IP
       socket = TCPSocket.new("8.8.8.8", 53)
-      local_ip = socket.local_address.address
-      socket.close
 
-      # Extract subnet (assuming /24)
-      parts = local_ip.split(".")
-      if parts.size == 4
-        return "#{parts[0]}.#{parts[1]}.#{parts[2]}"
+      # Get the local address and ensure it's an IP address
+      if local_addr = socket.local_address.as?(Socket::IPAddress)
+        local_ip = local_addr.address
+        socket.close
+
+        # Extract subnet (assuming /24)
+        parts = local_ip.split(".")
+        if parts.size == 4
+          return "#{parts[0]}.#{parts[1]}.#{parts[2]}"
+        end
+      else
+        socket.close
       end
     rescue
       # Fallback to common private subnets
