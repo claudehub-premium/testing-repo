@@ -120,10 +120,9 @@ class NetworkDiscovery
     mutex = Mutex.new
 
     # Channel to collect results
-    channel = Channel(Device?).new(concurrency)
+    channel = Channel(Device?).new(total)
 
-    # Spawn worker fibers to scan IPs concurrently
-    spawned = 0
+    # Spawn all worker fibers to scan IPs concurrently
     range.each do |i|
       ip = "#{subnet}.#{i}"
 
@@ -132,38 +131,10 @@ class NetworkDiscovery
         device = check_host(ip)
         channel.send(device)
       end
-
-      spawned += 1
-
-      # Limit number of concurrent workers
-      if spawned % concurrency == 0
-        concurrency.times do
-          if device = channel.receive
-            mutex.synchronize do
-              devices << device
-              scanned += 1
-              print "\r✓ Found device: #{device.ip.ljust(15)} "
-              print "#{device.open_ports.map { |p| p.to_s }.join(", ").ljust(20)}"
-              puts ""
-            end
-          else
-            mutex.synchronize { scanned += 1 }
-          end
-
-          # Display progress (thread-safe)
-          mutex.synchronize do
-            if scanned % 10 == 0
-              progress = (scanned.to_f / total * 100).round(1)
-              print "\rProgress: #{progress}% (#{scanned}/#{total}) - Found: #{devices.size} devices"
-            end
-          end
-        end
-      end
     end
 
-    # Collect remaining results
-    remaining = spawned % concurrency
-    remaining.times do
+    # Collect all results
+    total.times do
       if device = channel.receive
         mutex.synchronize do
           devices << device
@@ -174,6 +145,14 @@ class NetworkDiscovery
         end
       else
         mutex.synchronize { scanned += 1 }
+      end
+
+      # Display progress (thread-safe)
+      mutex.synchronize do
+        if scanned % 10 == 0
+          progress = (scanned.to_f / total * 100).round(1)
+          print "\rProgress: #{progress}% (#{scanned}/#{total}) - Found: #{devices.size} devices"
+        end
       end
     end
 
