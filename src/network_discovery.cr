@@ -61,17 +61,20 @@ class NetworkDiscovery
     nil
   end
 
-  # Try to resolve hostname for an IP using native DNS resolution
+  # Try to resolve hostname for an IP using reverse DNS
   def self.resolve_hostname(ip : String) : String?
     begin
-      # Use Crystal's Socket library for native reverse DNS lookup
-      # This is much faster than spawning a subprocess
-      addrinfo = Socket::Addrinfo.resolve(ip, 0, type: Socket::Type::STREAM)
-      if addrinfo && addrinfo.size > 0
-        # Get the hostname from the first result
-        hostname, _ = addrinfo[0].getnameinfo
-        # Return hostname only if it's different from the IP
-        return hostname unless hostname == ip
+      # Crystal's standard library doesn't include reverse DNS (getnameinfo)
+      # We can try using the system's host command as a workaround
+      result = Process.run("host", [ip], output: Process::Redirect::Pipe, error: Process::Redirect::Close)
+
+      if result.success?
+        output = result.output.to_s
+        # Parse output like: "1.2.3.4.in-addr.arpa domain name pointer hostname.example.com."
+        if match = output.match(/pointer\s+(.+)\.\s*$/)
+          hostname = match[1]
+          return hostname unless hostname.empty? || hostname == ip
+        end
       end
     rescue
       # Hostname resolution failed - this is normal for many IPs
